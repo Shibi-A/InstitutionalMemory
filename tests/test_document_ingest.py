@@ -28,6 +28,18 @@ class DocumentIngestTests(unittest.TestCase):
         self.assertEqual(evidence[1].contribution_type, "IMPLEMENTED")
         self.assertEqual(evidence[1].level, "explicit")
 
+    def test_lowercase_work_object_maps_to_document_subject(self):
+        document = parse_document(
+            "Owner: Alice Kim\nSubject: Authentication Service\n\n"
+            "Bob Chen implemented the token validation module."
+        )
+
+        evidence = infer_evidence(document)
+
+        self.assertEqual(evidence[1].person, "Bob Chen")
+        self.assertEqual(evidence[1].project, "Authentication Service")
+        self.assertEqual(evidence[1].contribution_type, "IMPLEMENTED")
+
 
 if __name__ == "__main__":
     unittest.main()

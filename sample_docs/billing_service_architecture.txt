@@ -1,0 +1,15 @@
+Title: Billing Service Architecture
+Owner: Henry Jones
+Subject: Billing Service
+
+Billing Service processes subscription renewals and payment events.
+
+Henry Jones owns Billing Service and authored the architecture documentation.
+
+Emma Wilson implemented payment retry workflows and webhook processing.
+
+Billing Service depends on API Gateway and Notification Platform.
+
+Frank Zhao reviewed monitoring requirements and alerting strategy.
+
+Henry Jones remains the primary owner of billing infrastructure.

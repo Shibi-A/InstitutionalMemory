@@ -52,3 +52,15 @@ Remove a document and its evidence:
 ```sh
 .venv/bin/python -m ingestion.document_remove <document-id>
 ```
+
+Batch ingest every new single-document `.txt` file in `sample_docs/`:
+
+```sh
+.venv/bin/python -m ingestion.batch_ingest sample_docs
+```
+
+The same batch can be started from `retrieval/graph_question.py` by entering:
+
+```text
+ingest everything in sample documents
+```

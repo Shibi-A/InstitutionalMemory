@@ -1,0 +1,13 @@
+Title: Billing Incident Postmortem
+Owner: Frank Zhao
+Subject: Billing Service
+
+A payment processing outage delayed subscription renewals for several hours.
+
+Emma Wilson identified a database connection issue and deployed a mitigation.
+
+Henry Jones coordinated communication with partner teams and customers.
+
+Frank Zhao analyzed operational metrics and created follow-up monitoring dashboards.
+
+The incident impacted Notification Platform delivery rates.

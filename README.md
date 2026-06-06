@@ -53,6 +53,19 @@ quit
 .venv/bin/python -m ingestion.document_ingest
 ```
 
+Ingest one document file:
+
+```sh
+.venv/bin/python -m ingestion.document_ingest \
+  sample_docs/authentication_service_migration.txt
+```
+
+Ingest every new document in `sample_docs/`:
+
+```sh
+.venv/bin/python -m ingestion.batch_ingest sample_docs
+```
+
 Example input:
 
 ```text

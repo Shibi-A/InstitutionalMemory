@@ -83,23 +83,37 @@ def infer_evidence(document: Document) -> list[ProposedEvidence]:
         )
     ]
     explicit_pattern = re.compile(
-        r"\b([A-Z][A-Za-z .'-]*?)\s+"
-        r"(designed|implemented|built|developed|owned)\s+"
-        r"(?:the\s+)?([A-Z][A-Za-z0-9 .'-]*?)(?:[.!?\n]|$)"
+        r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+"
+        r"(authored|built|designed|developed|implemented|led|owns?|owned)\s+"
+        r"(.+?)(?=[.!?\n]|$)"
     )
     relationship_types = {
+        "authored": "DESIGNS",
         "designed": "DESIGNS",
         "implemented": "IMPLEMENTED",
         "built": "IMPLEMENTED",
         "developed": "IMPLEMENTED",
+        "led": "OWNED",
+        "own": "OWNED",
+        "owns": "OWNED",
         "owned": "OWNED",
     }
     for match in explicit_pattern.finditer(document.content):
         statement = match.group(0).strip()
+        object_text = re.sub(r"^the\s+", "", match.group(3).strip(), flags=re.IGNORECASE)
+        named_targets = re.findall(
+            r"\b[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)*\b",
+            object_text,
+        )
+        project = (
+            named_targets[0]
+            if named_targets and named_targets[0] not in {"RFC"}
+            else document.subject
+        )
         proposed.append(
             ProposedEvidence(
                 person=match.group(1).strip(),
-                project=match.group(3).strip(),
+                project=project,
                 contribution_type=relationship_types[match.group(2).lower()],
                 level="explicit",
                 weight=1.0,

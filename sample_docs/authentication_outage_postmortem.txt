@@ -1,0 +1,13 @@
+Title: Authentication Outage Postmortem
+Owner: Emma Wilson
+Subject: Authentication Service
+
+On March 14, Authentication Service experienced elevated latency due to an expired cache configuration.
+
+Bob Chen identified the root cause and deployed a configuration fix. Alice Kim coordinated the incident response and communicated status updates to stakeholders.
+
+Frank Zhao created dashboards to track authentication latency and error rates.
+
+The issue affected downstream calls to User Profile Service.
+
+Action items were assigned to Bob Chen and Frank Zhao.

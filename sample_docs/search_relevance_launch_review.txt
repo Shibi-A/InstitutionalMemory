@@ -1,0 +1,13 @@
+Title: Search Relevance Launch Review
+Owner: Grace Patel
+Subject: Search Service
+
+The Search Relevance project introduces behavioral ranking signals to improve result quality.
+
+Grace Patel authored the launch review and validated offline evaluation metrics.
+
+David Park implemented the ranking signal ingestion pipeline.
+
+Carol Singh approved the launch and reviewed operational readiness.
+
+Analytics Pipeline supplies relevance features used by Search Service.

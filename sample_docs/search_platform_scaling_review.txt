@@ -1,0 +1,13 @@
+Title: Search Platform Scaling Review
+Owner: Carol Singh
+Subject: Search Service
+
+Search Service traffic increased significantly during the holiday season.
+
+Carol Singh owns Search Service and proposed a shard-based indexing strategy. David Park implemented the indexing pipeline and optimized query execution.
+
+Grace Patel reviewed ranking algorithm changes and validated search quality metrics.
+
+Search Service depends on Analytics Pipeline and Feature Flag System.
+
+David Park and Carol Singh are primary maintainers of the search infrastructure.

@@ -1,0 +1,15 @@
+Title: API Gateway Onboarding Guide
+Owner: Henry Jones
+Subject: API Gateway
+
+API Gateway is the entry point for external service requests.
+
+Henry Jones owns API Gateway and authored this onboarding guide.
+
+Bob Chen implemented request validation middleware.
+
+Carol Singh contributed gateway routing improvements.
+
+Billing Service depends on API Gateway for request handling.
+
+New engineers should consult Henry Jones for architecture questions.

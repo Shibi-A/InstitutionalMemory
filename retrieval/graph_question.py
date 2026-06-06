@@ -2,12 +2,14 @@
 
 import os
 import sys
+from pathlib import Path
 
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from retrieval.graph_query import answer_question
 from retrieval.graph_update import apply_update
+from ingestion.batch_ingest import ingest_directory
 
 
 QUERY_PREFIXES = (
@@ -44,6 +46,15 @@ def handle_input(user_input: str) -> int:
     if not user_input:
         print("A graph question or update is required.")
         return 1
+
+    lowered = user_input.lower()
+    if (
+        "ingest" in lowered
+        and ("everything" in lowered or "all" in lowered)
+        and ("sample document" in lowered or "sample_docs" in lowered)
+    ):
+        print("Matched operation: batch_ingest (100.0%)")
+        return ingest_directory(Path("sample_docs"))
 
     operation, confidence = classify_operation(user_input)
     print(f"Matched operation: {operation} ({confidence:.1%})")

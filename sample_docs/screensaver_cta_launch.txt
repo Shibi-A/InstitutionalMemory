@@ -13,4 +13,3 @@ Daniel Park updated the ad decisioning integration so that eligible campaigns ca
 The primary repository for this work is firetv-screensaver-cta. The CTA Renderer depends on Ad Decisioning Gateway and Metrics Collector.
 
 Launch readiness requires sign-off from Shibi Ayyanar for rendering, Daniel Park for ad decisioning, and Priya Raman for launch metrics.
-END

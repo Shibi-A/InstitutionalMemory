@@ -1,0 +1,15 @@
+Title: Notification Platform RFC
+Owner: Emma Wilson
+Subject: Notification Platform
+
+Notification Platform provides email, SMS, and push delivery services.
+
+Emma Wilson owns Notification Platform and authored this RFC.
+
+Bob Chen implemented delivery queue optimizations and retry handling.
+
+Notification Platform depends on User Profile Service for communication preferences.
+
+Alice Kim reviewed authentication requirements for outbound messaging.
+
+Emma Wilson approved the implementation plan.

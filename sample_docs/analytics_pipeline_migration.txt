@@ -1,0 +1,15 @@
+Title: Analytics Pipeline Migration
+Owner: Frank Zhao
+Subject: Analytics Pipeline
+
+Analytics Pipeline is being migrated to a new event processing framework.
+
+Frank Zhao owns Analytics Pipeline and authored the migration proposal.
+
+David Park implemented event ingestion services.
+
+Grace Patel validated analytics quality and reporting accuracy.
+
+Analytics Pipeline provides data to Search Service and Billing Service.
+
+Frank Zhao approved the migration rollout.

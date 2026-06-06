@@ -1,0 +1,13 @@
+Title: Authentication Service Migration
+Owner: Alice Kim
+Subject: Authentication Service
+
+The Authentication Service is being migrated from a monolithic deployment to a service-oriented architecture.
+
+Alice Kim owns the Authentication Service and authored the migration design. Bob Chen implemented the token validation module and contributed the session caching layer.
+
+The Authentication Service depends on User Profile Service and Notification Platform.
+
+Emma Wilson reviewed the migration plan and approved the rollout strategy.
+
+Launch readiness requires sign-off from Alice Kim and Emma Wilson.

@@ -39,6 +39,12 @@ class GraphRoutingTests(unittest.TestCase):
                 parsed = parse_project_assignment(f"Sam {verb} Backend")
                 self.assertEqual(parsed, ("Sam", "IMPLEMENTED", "Backend"))
 
+    def test_batch_ingest_statement_is_update_shaped(self):
+        self.assertEqual(
+            classify_operation("ingest everything in sample documents"),
+            ("update", 1.0),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
