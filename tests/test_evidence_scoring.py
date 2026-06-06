@@ -1,6 +1,11 @@
 import unittest
 
-from evidence.service import calculate_confidence, calculate_strength
+from evidence.service import (
+    calculate_adjusted_confidence,
+    calculate_confidence,
+    calculate_effective_weight,
+    calculate_strength,
+)
 
 
 class EvidenceScoringTests(unittest.TestCase):
@@ -15,6 +20,13 @@ class EvidenceScoringTests(unittest.TestCase):
     def test_strength_is_share_of_project_type_evidence(self):
         self.assertAlmostEqual(calculate_strength(3.0, 4.0), 0.75)
         self.assertAlmostEqual(calculate_strength(1.0, 4.0), 0.25)
+
+    def test_contradiction_lowers_confidence_and_effective_weight(self):
+        supported = calculate_adjusted_confidence(2.0, 0.0)
+        contradicted = calculate_adjusted_confidence(2.0, 1.0)
+
+        self.assertLess(contradicted, supported)
+        self.assertEqual(calculate_effective_weight(2.0, 1.0), 1.0)
 
 
 if __name__ == "__main__":

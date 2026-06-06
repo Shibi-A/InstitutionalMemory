@@ -44,6 +44,7 @@ Who knows about Frontend?
 Why do we think Bob implemented Frontend?
 Sam built the compiler
 Remove Sam
+no Alice built Compilation Service not Bob
 quit
 ```
 

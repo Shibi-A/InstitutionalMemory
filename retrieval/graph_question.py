@@ -9,6 +9,7 @@ if __package__ in (None, ""):
 
 from retrieval.graph_query import answer_question
 from retrieval.graph_update import apply_update
+from retrieval.graph_feedback import apply_feedback
 from ingestion.batch_ingest import ingest_directory
 
 
@@ -48,6 +49,9 @@ def handle_input(user_input: str) -> int:
         return 1
 
     lowered = user_input.lower()
+    if lowered.startswith("no "):
+        print("Matched operation: feedback (100.0%)")
+        return apply_feedback(user_input)
     if (
         "ingest" in lowered
         and ("everything" in lowered or "all" in lowered)

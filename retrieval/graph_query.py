@@ -29,6 +29,29 @@ class Intent:
 
 INTENTS = (
     Intent(
+        name="person_summary",
+        examples=(
+            "What does this person do?",
+            "Tell me about this person",
+            "Summarize this person's work",
+        ),
+        entity_labels=("Person",),
+        cypher="""
+        MATCH (person:Person)
+        WHERE toLower(person.name) = toLower($entity_0)
+        OPTIONAL MATCH (person)-[:IS]->(role:Role)
+        OPTIONAL MATCH (person)-[work:DESIGNS|IMPLEMENTED|OWNED]->(project:Project)
+        OPTIONAL MATCH (person)-[:WORKS_UNDER]->(supervisor:Person)
+        OPTIONAL MATCH (person)-[:SUPERVISES]->(directReport:Person)
+        RETURN person.name AS person,
+               collect(DISTINCT role.name) AS roles,
+               collect(DISTINCT project.name) AS projects,
+               collect(DISTINCT type(work)) AS contributions,
+               collect(DISTINCT supervisor.name) AS supervisors,
+               collect(DISTINCT directReport.name) AS direct_reports
+        """,
+    ),
+    Intent(
         name="project_owner",
         examples=(
             "Who owns the project?",
@@ -56,7 +79,8 @@ INTENTS = (
         WHERE toLower(person.name) = toLower($entity_0)
         RETURN project.name AS project, type(work) AS contribution,
                work.confidence AS confidence, work.strength AS strength,
-               work.evidence_count AS evidence_count
+               work.evidence_count AS evidence_count,
+               work.contradicting_evidence_count AS contradictions
         ORDER BY project, contribution
         """,
     ),
@@ -64,7 +88,6 @@ INTENTS = (
         name="person_role",
         examples=(
             "What is this person's role?",
-            "What does Bob do?",
             "What position does this person have?",
         ),
         entity_labels=("Person",),
@@ -119,7 +142,8 @@ INTENTS = (
         WHERE toLower(project.name) = toLower($entity_0)
         RETURN person.name AS person, type(work) AS contribution,
                work.confidence AS confidence, work.strength AS strength,
-               work.evidence_count AS evidence_count
+               work.evidence_count AS evidence_count,
+               work.contradicting_evidence_count AS contradictions
         ORDER BY contribution, strength DESC, person
         """,
     ),
@@ -138,6 +162,7 @@ INTENTS = (
         RETURN evidence.contribution_type AS contribution,
                evidence.level AS level,
                evidence.weight AS weight,
+               coalesce(evidence.polarity, 1) AS polarity,
                evidence.source AS source,
                evidence.statement AS statement,
                evidence.source_document_id AS document_id,
@@ -182,6 +207,11 @@ def get_entities(driver) -> list[dict[str, str]]:
 def classify_intent(question: str) -> tuple[Intent, float]:
     lowered = question.lower()
     intent_aliases = {
+        "person_summary": (
+            "what does",
+            "tell me about",
+            "summarize",
+        ),
         "project_contributors": (
             "knows about",
             "know about",

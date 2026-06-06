@@ -16,6 +16,7 @@ Evidence properties include:
 - `inference_rule`: rule used for inferred evidence
 - `contribution_type`: relationship being supported
 - `statement`: human-readable supporting statement
+- `polarity`: `1` for supporting evidence or `-1` for contradictory evidence
 
 Derived contribution relationships contain:
 
@@ -24,6 +25,24 @@ Derived contribution relationships contain:
 - `evidence_count`
 - `evidence_weight`
 - `last_calculated_at`
+- `supporting_evidence_count`
+- `contradicting_evidence_count`
+- `contradicting_evidence_weight`
+
+Contradictory evidence lowers confidence and effective strength without deleting
+the historical supporting evidence or its relationship summary.
+
+## User Feedback
+
+Corrections can be entered directly in `retrieval/graph_question.py`:
+
+```text
+no Alice built Compilation Service not Bob
+```
+
+After confirmation, this creates supporting `IMPLEMENTED` evidence for Alice
+and contradictory `IMPLEMENTED` evidence for Bob. Both evidence records remain
+available when asking why the system believes a relationship exists.
 
 ## Document Ingestion
 

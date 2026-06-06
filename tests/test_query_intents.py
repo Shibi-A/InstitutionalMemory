@@ -4,6 +4,12 @@ from retrieval.graph_query import classify_intent
 
 
 class GraphQueryIntentTests(unittest.TestCase):
+    def test_what_does_person_do_maps_to_person_summary(self):
+        intent, confidence = classify_intent("What does Alice do?")
+
+        self.assertEqual(intent.name, "person_summary")
+        self.assertEqual(confidence, 1.0)
+
     def test_knows_about_project_maps_to_contributors(self):
         intent, confidence = classify_intent("Who knows about a compiler?")
 

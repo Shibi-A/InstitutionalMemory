@@ -45,6 +45,12 @@ class GraphRoutingTests(unittest.TestCase):
             ("update", 1.0),
         )
 
+    def test_feedback_statement_is_update_shaped(self):
+        self.assertEqual(
+            classify_operation("no Alice built Backend not Bob"),
+            ("update", 1.0),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

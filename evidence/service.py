@@ -20,10 +20,31 @@ class RelationshipScore:
     strength: float
     evidence_count: int
     evidence_weight: float
+    supporting_evidence_count: int
+    contradicting_evidence_count: int
+    contradicting_evidence_weight: float
 
 
 def calculate_confidence(total_weight: float) -> float:
     return 1.0 - math.exp(-total_weight)
+
+
+def calculate_adjusted_confidence(
+    supporting_weight: float,
+    contradicting_weight: float,
+) -> float:
+    if supporting_weight <= 0:
+        return 0.0
+    certainty = calculate_confidence(supporting_weight)
+    agreement = supporting_weight / (supporting_weight + contradicting_weight)
+    return certainty * agreement
+
+
+def calculate_effective_weight(
+    supporting_weight: float,
+    contradicting_weight: float,
+) -> float:
+    return max(0.0, supporting_weight - contradicting_weight)
 
 
 def calculate_strength(person_weight: float, project_type_weight: float) -> float:
@@ -43,6 +64,7 @@ def add_contribution_evidence(
     statement: str,
     source_document_id: Optional[str] = None,
     inference_rule: Optional[str] = None,
+    polarity: int = 1,
     weight: Optional[float] = None,
     evidence_id: Optional[str] = None,
     recalculate: bool = True,
@@ -52,6 +74,8 @@ def add_contribution_evidence(
         raise ValueError(f"Unsupported contribution type: {contribution_type}")
     if level not in EVIDENCE_WEIGHTS:
         raise ValueError(f"Unsupported evidence level: {level}")
+    if polarity not in (-1, 1):
+        raise ValueError("Evidence polarity must be 1 or -1.")
 
     evidence_id = evidence_id or str(uuid.uuid4())
     evidence_weight = weight if weight is not None else EVIDENCE_WEIGHTS[level]
@@ -67,7 +91,8 @@ def add_contribution_evidence(
             evidence.statement = $statement,
             evidence.contribution_type = $contribution_type,
             evidence.source_document_id = $source_document_id,
-            evidence.inference_rule = $inference_rule
+            evidence.inference_rule = $inference_rule,
+            evidence.polarity = $polarity
         MERGE (person)-[:HAS_EVIDENCE]->(evidence)
         MERGE (evidence)-[:ABOUT]->(project)
         """,
@@ -81,6 +106,7 @@ def add_contribution_evidence(
         contribution_type=contribution_type,
         source_document_id=source_document_id,
         inference_rule=inference_rule,
+        polarity=polarity,
         database_="neo4j",
     )
     if recalculate:
@@ -105,14 +131,28 @@ def recalculate_relationship_scores(
         RETURN person.name AS person,
                project.name AS project,
                count(evidence) AS evidence_count,
-               sum(evidence.weight) AS evidence_weight
+               sum(CASE WHEN coalesce(evidence.polarity, 1) = 1
+                        THEN evidence.weight ELSE 0 END) AS supporting_weight,
+               sum(CASE WHEN evidence.polarity = -1
+                        THEN evidence.weight ELSE 0 END) AS contradicting_weight,
+               sum(CASE WHEN coalesce(evidence.polarity, 1) = 1
+                        THEN 1 ELSE 0 END) AS supporting_count,
+               sum(CASE WHEN evidence.polarity = -1
+                        THEN 1 ELSE 0 END) AS contradicting_count
         ORDER BY person
         """,
         project=project,
         contribution_type=contribution_type,
         database_="neo4j",
     )
-    total_weight = sum(record["evidence_weight"] for record in records)
+    effective_weights = {
+        record["person"]: calculate_effective_weight(
+            record["supporting_weight"],
+            record["contradicting_weight"],
+        )
+        for record in records
+    }
+    total_weight = sum(effective_weights.values())
 
     driver.execute_query(
         f"""
@@ -125,11 +165,22 @@ def recalculate_relationship_scores(
     )
 
     for record in records:
+        if record["supporting_weight"] <= 0:
+            continue
         score = RelationshipScore(
-            confidence=calculate_confidence(record["evidence_weight"]),
-            strength=calculate_strength(record["evidence_weight"], total_weight),
+            confidence=calculate_adjusted_confidence(
+                record["supporting_weight"],
+                record["contradicting_weight"],
+            ),
+            strength=calculate_strength(
+                effective_weights[record["person"]],
+                total_weight,
+            ),
             evidence_count=record["evidence_count"],
-            evidence_weight=record["evidence_weight"],
+            evidence_weight=record["supporting_weight"],
+            supporting_evidence_count=record["supporting_count"],
+            contradicting_evidence_count=record["contradicting_count"],
+            contradicting_evidence_weight=record["contradicting_weight"],
         )
         driver.execute_query(
             f"""
@@ -141,6 +192,9 @@ def recalculate_relationship_scores(
                 work.strength = $strength,
                 work.evidence_count = $evidence_count,
                 work.evidence_weight = $evidence_weight,
+                work.supporting_evidence_count = $supporting_evidence_count,
+                work.contradicting_evidence_count = $contradicting_evidence_count,
+                work.contradicting_evidence_weight = $contradicting_evidence_weight,
                 work.last_calculated_at = datetime()
             """,
             person=record["person"],
@@ -149,6 +203,9 @@ def recalculate_relationship_scores(
             strength=score.strength,
             evidence_count=score.evidence_count,
             evidence_weight=score.evidence_weight,
+            supporting_evidence_count=score.supporting_evidence_count,
+            contradicting_evidence_count=score.contradicting_evidence_count,
+            contradicting_evidence_weight=score.contradicting_evidence_weight,
             database_="neo4j",
         )
 
