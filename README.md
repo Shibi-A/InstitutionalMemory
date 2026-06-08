@@ -31,6 +31,15 @@ export NEO4J_USER="neo4j"
 export NEO4J_PASSWORD="password"
 ```
 
+Public GitHub repository ingestion can run without authentication. Optionally
+provide a token to increase GitHub API rate limits:
+
+```sh
+export GITHUB_TOKEN="github_pat_..."
+```
+
+Never commit the token to the repository.
+
 ## Ask Questions And Update The Graph
 
 ```sh
@@ -41,12 +50,26 @@ Examples:
 
 ```text
 Who knows about Frontend?
+Who owns Frontend?
 Why do we think Bob implemented Frontend?
 Sam built the compiler
 Remove Sam
 no Alice built Compilation Service not Bob
+ingest https://github.com/openai/openai-python
 quit
 ```
+
+GitHub repository ingestion analyzes the most recent 25 non-merge commits by
+default. Configure the limit when needed:
+
+```sh
+export GITHUB_COMMIT_LIMIT=100
+.venv/bin/python -m ingestion.github_repository_ingest openai/openai-python
+```
+
+Each commit creates weak, timestamped `IMPLEMENTED` evidence for the repository
+components it changed. Re-running ingestion skips commits already stored in the
+graph.
 
 ## Document Ingestion
 
@@ -73,9 +96,16 @@ Example input:
 Title: Compiler Architecture Notes
 Owner: Bob
 Subject: Compilers
+Date: 2025-06-08
 
 Alice implemented Parser.
 END
+```
+
+Refresh time-decayed relationship scores:
+
+```sh
+.venv/bin/python -m evidence.recalculate
 ```
 
 ## Tests

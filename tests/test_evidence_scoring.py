@@ -4,6 +4,8 @@ from evidence.service import (
     calculate_adjusted_confidence,
     calculate_confidence,
     calculate_effective_weight,
+    calculate_decay_multiplier,
+    calculate_decayed_weight,
     calculate_strength,
 )
 
@@ -27,6 +29,16 @@ class EvidenceScoringTests(unittest.TestCase):
 
         self.assertLess(contradicted, supported)
         self.assertEqual(calculate_effective_weight(2.0, 1.0), 1.0)
+
+    def test_evidence_loses_half_its_weight_after_one_half_life(self):
+        self.assertAlmostEqual(calculate_decay_multiplier(365, 365), 0.5)
+        self.assertAlmostEqual(calculate_decayed_weight(1.0, 365, 365), 0.5)
+
+    def test_recent_evidence_outweighs_old_evidence(self):
+        recent = calculate_decayed_weight(1.0, 30, 365)
+        old = calculate_decayed_weight(1.0, 1095, 365)
+
+        self.assertGreater(recent, old)
 
 
 if __name__ == "__main__":

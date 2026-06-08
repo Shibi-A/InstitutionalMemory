@@ -1,6 +1,6 @@
 import unittest
 
-from retrieval.graph_question import classify_operation
+from retrieval.graph_question import classify_operation, extract_github_repository
 from retrieval.graph_update import parse_project_assignment
 
 
@@ -49,6 +49,14 @@ class GraphRoutingTests(unittest.TestCase):
         self.assertEqual(
             classify_operation("no Alice built Backend not Bob"),
             ("update", 1.0),
+        )
+
+    def test_github_repository_ingest_is_update_shaped(self):
+        command = "ingest https://github.com/openai/openai-python"
+        self.assertEqual(classify_operation(command), ("update", 1.0))
+        self.assertEqual(
+            extract_github_repository(command),
+            "openai/openai-python",
         )
 
 

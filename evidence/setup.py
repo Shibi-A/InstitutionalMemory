@@ -15,6 +15,14 @@ def main() -> None:
         CREATE CONSTRAINT document_id_unique IF NOT EXISTS
         FOR (document:Document) REQUIRE document.id IS UNIQUE
         """,
+        """
+        CREATE CONSTRAINT repository_full_name_unique IF NOT EXISTS
+        FOR (repository:Repository) REQUIRE repository.full_name IS UNIQUE
+        """,
+        """
+        CREATE CONSTRAINT commit_repository_sha_unique IF NOT EXISTS
+        FOR (commit:Commit) REQUIRE (commit.repository, commit.sha) IS UNIQUE
+        """,
     )
     with GraphDatabase.driver(
         os.getenv("NEO4J_URI", "bolt://localhost:7687"),

@@ -1,6 +1,7 @@
 """Route general user input to graph retrieval or controlled graph updates."""
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -11,6 +12,8 @@ from retrieval.graph_query import answer_question
 from retrieval.graph_update import apply_update
 from retrieval.graph_feedback import apply_feedback
 from ingestion.batch_ingest import ingest_directory
+from ingestion.github_repository_ingest import ingest_github_repository
+from ingestion.github_client import parse_github_repository
 
 
 QUERY_PREFIXES = (
@@ -43,6 +46,22 @@ def classify_operation(user_input: str) -> tuple[str, float]:
     return "update", 1.0
 
 
+def extract_github_repository(user_input: str):
+    match = re.search(
+        r"(https?://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?/?)",
+        user_input,
+        re.IGNORECASE,
+    )
+    if match:
+        return parse_github_repository(match.group(1)).full_name
+    match = re.match(
+        r"^\s*ingest\s+([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\.git)?)\s*$",
+        user_input,
+        re.IGNORECASE,
+    )
+    return parse_github_repository(match.group(1)).full_name if match else None
+
+
 def handle_input(user_input: str) -> int:
     if not user_input:
         print("A graph question or update is required.")
@@ -52,6 +71,10 @@ def handle_input(user_input: str) -> int:
     if lowered.startswith("no "):
         print("Matched operation: feedback (100.0%)")
         return apply_feedback(user_input)
+    repository = extract_github_repository(user_input)
+    if "ingest" in lowered and repository:
+        print("Matched operation: github_repository_ingest (100.0%)")
+        return ingest_github_repository(repository)
     if (
         "ingest" in lowered
         and ("everything" in lowered or "all" in lowered)

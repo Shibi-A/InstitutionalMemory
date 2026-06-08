@@ -40,6 +40,19 @@ class DocumentIngestTests(unittest.TestCase):
         self.assertEqual(evidence[1].project, "Authentication Service")
         self.assertEqual(evidence[1].contribution_type, "IMPLEMENTED")
 
+    def test_document_date_is_parsed_as_observation_time(self):
+        document = parse_document(
+            "Owner: Bob\nSubject: Compilers\nDate: 2024-01-15\n\nNotes."
+        )
+
+        self.assertEqual(document.observed_at, "2024-01-15T00:00:00Z")
+
+    def test_invalid_document_date_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
+            parse_document(
+                "Owner: Bob\nSubject: Compilers\nDate: January 15\n\nNotes."
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

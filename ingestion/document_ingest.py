@@ -5,6 +5,7 @@ import os
 import re
 import sys
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,7 @@ class Document:
     owner: str
     subject: str
     content: str
+    observed_at: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -48,7 +50,11 @@ def parse_document(text: str) -> Document:
     in_content = False
 
     for line in text.splitlines():
-        match = re.match(r"^(Title|Owner|Subject):\s*(.+)$", line.strip(), re.IGNORECASE)
+        match = re.match(
+            r"^(Title|Owner|Subject|Date):\s*(.+)$",
+            line.strip(),
+            re.IGNORECASE,
+        )
         if match and not in_content:
             fields[match.group(1).lower()] = match.group(2).strip()
         else:
@@ -59,6 +65,14 @@ def parse_document(text: str) -> Document:
     if missing:
         raise ValueError(f"Document is missing required field(s): {', '.join(missing)}")
 
+    observed_at = None
+    if fields.get("date"):
+        try:
+            parsed_date = date.fromisoformat(fields["date"])
+        except ValueError as error:
+            raise ValueError("Document Date must use YYYY-MM-DD format.") from error
+        observed_at = f"{parsed_date.isoformat()}T00:00:00Z"
+
     normalized = text.strip().encode("utf-8")
     document_id = hashlib.sha256(normalized).hexdigest()[:16]
     return Document(
@@ -67,6 +81,7 @@ def parse_document(text: str) -> Document:
         owner=fields["owner"],
         subject=fields["subject"],
         content="\n".join(content_lines).strip(),
+        observed_at=observed_at,
     )
 
 
@@ -140,6 +155,10 @@ def ingest_document(driver, document: Document, proposed: list[ProposedEvidence]
             document.owner = $owner,
             document.subject = $subject,
             document.content = $content,
+            document.observed_at = CASE
+              WHEN $observed_at IS NULL THEN document.observed_at
+              ELSE datetime($observed_at)
+            END,
             document.ingested_at = datetime()
         MERGE (owner:Person {name: $owner})
         MERGE (subject:Project {name: $subject})
@@ -151,6 +170,7 @@ def ingest_document(driver, document: Document, proposed: list[ProposedEvidence]
         owner=document.owner,
         subject=document.subject,
         content=document.content,
+        observed_at=document.observed_at,
         database_="neo4j",
     )
     for evidence in proposed:
@@ -164,6 +184,7 @@ def ingest_document(driver, document: Document, proposed: list[ProposedEvidence]
             source="document_ingestion",
             source_document_id=document.document_id,
             inference_rule=evidence.inference_rule,
+            observed_at=document.observed_at,
             statement=evidence.statement,
         )
 

@@ -1,9 +1,11 @@
 """Handle read-only graph retrieval using local Chroma intent matching."""
 
 import os
+import re
 import sys
 from dataclasses import dataclass
-from typing import Any
+from difflib import SequenceMatcher
+from typing import Any, Iterable
 
 from neo4j import GraphDatabase
 from neo4j.exceptions import Neo4jError, ServiceUnavailable
@@ -25,6 +27,22 @@ class Intent:
     examples: tuple[str, ...]
     entity_labels: tuple[str, ...]
     cypher: str
+
+
+@dataclass(frozen=True)
+class OwnershipCandidate:
+    person: str
+    score: float
+    likelihood: float
+    direct_owner: bool
+    criteria: tuple[str, ...]
+
+
+OWNERSHIP_WEIGHTS = {
+    "OWNED": 1.0,
+    "DESIGNS": 0.75,
+    "IMPLEMENTED": 0.55,
+}
 
 
 INTENTS = (
@@ -59,12 +77,7 @@ INTENTS = (
             "Who owns the API work?",
         ),
         entity_labels=("Project",),
-        cypher="""
-        MATCH (person:Person)-[:OWNED]->(project:Project)
-        WHERE toLower(project.name) = toLower($entity_0)
-        RETURN person.name AS owner, project.name AS project
-        ORDER BY owner
-        """,
+        cypher="",
     ),
     Intent(
         name="person_projects",
@@ -166,7 +179,8 @@ INTENTS = (
                evidence.source AS source,
                evidence.statement AS statement,
                evidence.source_document_id AS document_id,
-               evidence.inference_rule AS inference_rule
+               evidence.inference_rule AS inference_rule,
+               coalesce(evidence.observed_at, evidence.created_at) AS observed_at
         ORDER BY weight DESC, contribution
         """,
     ),
@@ -191,6 +205,85 @@ INTENTS = (
 )
 
 
+def rank_ownership_candidates(rows: Iterable[dict]) -> list[OwnershipCandidate]:
+    candidates = {}
+    for row in rows:
+        contribution = row["contribution"]
+        confidence = row.get("confidence") or 0.0
+        strength = row.get("strength")
+        strength = 1.0 if strength is None else strength
+        score = OWNERSHIP_WEIGHTS[contribution] * confidence * strength
+        person = row["person"]
+        candidate = candidates.setdefault(
+            person,
+            {"score": 0.0, "direct_owner": False, "criteria": []},
+        )
+        candidate["score"] += score
+        candidate["direct_owner"] = candidate["direct_owner"] or contribution == "OWNED"
+        candidate["criteria"].append(
+            f"{person} {contribution.lower()} the project "
+            f"(recency-adjusted confidence {confidence:.1%}, strength {strength:.1%})"
+        )
+        for statement in row.get("statements") or []:
+            if statement and statement != "Backfilled from an existing graph relationship.":
+                candidate["criteria"].append(f'Evidence: "{statement}"')
+
+    direct_candidates = {
+        person: candidate
+        for person, candidate in candidates.items()
+        if candidate["direct_owner"]
+    }
+    ranked_pool = direct_candidates or candidates
+    total_score = sum(candidate["score"] for candidate in ranked_pool.values())
+    ranked = [
+        OwnershipCandidate(
+            person=person,
+            score=candidate["score"],
+            likelihood=(candidate["score"] / total_score if total_score else 0.0),
+            direct_owner=candidate["direct_owner"],
+            criteria=tuple(dict.fromkeys(candidate["criteria"])),
+        )
+        for person, candidate in ranked_pool.items()
+    ]
+    return sorted(ranked, key=lambda candidate: candidate.score, reverse=True)
+
+
+def answer_project_owner(driver, project: str) -> None:
+    records, _, _ = driver.execute_query(
+        """
+        MATCH (person:Person)-[work:DESIGNS|IMPLEMENTED|OWNED]->(project:Project)
+        WHERE toLower(project.name) = toLower($project)
+        OPTIONAL MATCH (person)-[:HAS_EVIDENCE]->(evidence:Evidence)-[:ABOUT]->(project)
+        WHERE evidence.contribution_type = type(work)
+        RETURN person.name AS person,
+               type(work) AS contribution,
+               work.confidence AS confidence,
+               work.strength AS strength,
+               collect(DISTINCT evidence.statement) AS statements
+        """,
+        project=project,
+        database_="neo4j",
+    )
+    candidates = rank_ownership_candidates([record.data() for record in records])
+    if not candidates:
+        print("No ownership or contribution evidence found.")
+        return
+
+    owner = candidates[0]
+    conclusion = "directly supported owner" if owner.direct_owner else "likely owner"
+    print(f"{conclusion.title()}: {owner.person}")
+    print(f"Relative ownership likelihood: {owner.likelihood:.1%}")
+    print("Supporting criteria:")
+    for criterion in owner.criteria:
+        print(f"- {criterion}")
+
+    alternatives = [candidate for candidate in candidates[1:] if candidate.score > 0]
+    if alternatives:
+        print("Other candidates considered:")
+        for candidate in alternatives:
+            print(f"- {candidate.person}: {candidate.likelihood:.1%}")
+
+
 def get_entities(driver) -> list[dict[str, str]]:
     records, _, _ = driver.execute_query(
         """
@@ -207,6 +300,11 @@ def get_entities(driver) -> list[dict[str, str]]:
 def classify_intent(question: str) -> tuple[Intent, float]:
     lowered = question.lower()
     intent_aliases = {
+        "project_owner": (
+            "who owns",
+            "who is responsible for",
+            "who's responsible for",
+        ),
         "person_summary": (
             "what does",
             "tell me about",
@@ -265,15 +363,50 @@ def resolve_entities(
             name = max(exact_matches, key=len)
             confidence = 1.0
         else:
-            match = score_semantic_matches(question, candidates, limit=1)[0]
-            name = match.text
-            confidence = match.confidence
+            hint = extract_entity_hint(question, label)
+            lexical_matches = [
+                (
+                    candidate,
+                    SequenceMatcher(None, hint.lower(), candidate.lower()).ratio(),
+                )
+                for candidate in candidates
+            ]
+            lexical_name, lexical_confidence = max(
+                lexical_matches,
+                key=lambda value: value[1],
+            )
+            if lexical_confidence >= 0.65:
+                name = lexical_name
+                confidence = lexical_confidence
+            else:
+                match = score_semantic_matches(hint, candidates, limit=1)[0]
+                name = match.text
+                confidence = match.confidence
+                if confidence < 0.2:
+                    raise ValueError(
+                        f'Could not confidently match a {label} from "{hint}".'
+                    )
 
         resolved.append(name)
         confidences.append(confidence)
         used_names.add(name)
 
     return resolved, confidences
+
+
+def extract_entity_hint(question: str, label: str) -> str:
+    if label != "Project":
+        return question
+
+    patterns = (
+        r"\b(?:owns?|responsible for)\s+(.+?)[?.!]*$",
+        r"\b(?:about|on|for)\s+(.+?)[?.!]*$",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, question, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return question
 
 
 def format_value(value: Any) -> str:
@@ -321,11 +454,18 @@ def answer_question(question: str) -> int:
             parameters = {
                 f"entity_{index}": name for index, name in enumerate(names)
             }
-            records, _, _ = driver.execute_query(
-                intent.cypher,
-                parameters_=parameters,
-                database_="neo4j",
-            )
+            if intent.name == "project_owner":
+                print(f"\nMatched intent: {intent.name} ({intent_confidence:.1%})")
+                print(f"Matched Project: {names[0]} ({entity_confidences[0]:.1%})")
+                print()
+                answer_project_owner(driver, names[0])
+                return 0
+            else:
+                records, _, _ = driver.execute_query(
+                    intent.cypher,
+                    parameters_=parameters,
+                    database_="neo4j",
+                )
     except (Neo4jError, ServiceUnavailable) as error:
         print(f"Could not query Neo4j: {error}", file=sys.stderr)
         return 1
