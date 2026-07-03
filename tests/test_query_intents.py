@@ -33,6 +33,12 @@ class GraphQueryIntentTests(unittest.TestCase):
         self.assertEqual(intent.name, "relationship_evidence")
         self.assertEqual(confidence, 1.0)
 
+    def test_skill_question_maps_to_skill_experts(self):
+        intent, confidence = classify_intent("Who has experience with Neo4j?")
+
+        self.assertEqual(intent.name, "skill_experts")
+        self.assertEqual(confidence, 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

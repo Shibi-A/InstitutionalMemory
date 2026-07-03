@@ -76,6 +76,21 @@ commits, bots, generated directories, dependency locks, and vendor content are
 ignored. Repositories are split into repository-scoped projects based on paths,
 and already-ingested commits are skipped on later runs.
 
+GitHub ingestion also infers technology skills from changed file extensions,
+dependency manifests, repository paths, and added patch lines:
+
+```text
+(Repository)-[:USES]->(Skill)
+(Project)-[:USES]->(Skill)
+(Commit)-[:USES]->(Skill)
+(Person)-[:HAS_SKILL]->(Skill)
+```
+
+`HAS_SKILL` is a derived, evidence-backed relationship. Repeated recent usage
+increases confidence and strength; older usage decays. Removing a technology
+from a patch does not create new skill evidence. Rerunning ingestion backfills
+skills for commits ingested before skill inference was introduced.
+
 ## User Feedback
 
 Corrections can be entered directly in `retrieval/graph_question.py`:

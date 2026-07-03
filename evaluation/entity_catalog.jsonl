@@ -1,0 +1,34 @@
+{"label":"Project","name":"Frontend","text":"Frontend web interface UI React browser client-side visual application"}
+{"label":"Project","name":"Backend","text":"Backend server application APIs databases business logic"}
+{"label":"Project","name":"UI","text":"UI user interface visual design components screens"}
+{"label":"Project","name":"API Integration","text":"API Integration external services endpoints connectors"}
+{"label":"Project","name":"Project Management","text":"Project Management planning delivery coordination roadmap"}
+{"label":"Project","name":"Authentication Service","text":"Authentication Service auth login identity tokens token validation session caching authentication latency error rates"}
+{"label":"Project","name":"Billing Service","text":"Billing Service payments subscriptions renewals payment retries webhooks billing infrastructure"}
+{"label":"Project","name":"Search Service","text":"Search Service search platform indexing ranking query execution relevance"}
+{"label":"Project","name":"Search Relevance","text":"Search Relevance behavioral ranking signals result quality evaluation metrics"}
+{"label":"Project","name":"Notification Platform","text":"Notification Platform notifications email SMS push delivery queues retry handling"}
+{"label":"Project","name":"Analytics Pipeline","text":"Analytics Pipeline analytics events ingestion reporting data processing"}
+{"label":"Project","name":"API Gateway","text":"API Gateway external requests request validation middleware routing"}
+{"label":"Project","name":"Compiler","text":"Compiler compilation compiler service parser code generation"}
+{"label":"Project","name":"compiler service","text":"compiler service compilation parser code generation"}
+{"label":"Project","name":"Compilation Service","text":"Compilation Service compiler compilation build parser"}
+{"label":"Project","name":"Graph Database","text":"Graph Database graph storage Neo4j nodes relationships"}
+{"label":"Project","name":"Shibi-A/InstitutionalMemory: Ingestion","text":"Shibi-A InstitutionalMemory GitHub ingestion component repository import documents commits"}
+{"label":"Person","name":"Alice","text":"Alice person frontend design supervisor"}
+{"label":"Person","name":"Bob","text":"Bob person implementation contributor"}
+{"label":"Person","name":"Shibi","text":"Shibi person institutional memory contributor"}
+{"label":"Person","name":"Sam","text":"Sam person compiler contributor"}
+{"label":"Person","name":"Chris","text":"Chris person engineer"}
+{"label":"Person","name":"Dina","text":"Dina person graph database contributor"}
+{"label":"Person","name":"Alice Kim","text":"Alice Kim person Authentication Service owner migration incident response"}
+{"label":"Person","name":"Bob Chen","text":"Bob Chen person Authentication Service Notification Platform API Gateway implementation"}
+{"label":"Person","name":"Carol Singh","text":"Carol Singh person Search Service owner scaling"}
+{"label":"Person","name":"David Park","text":"David Park person Search Service Analytics Pipeline implementation"}
+{"label":"Person","name":"Emma Wilson","text":"Emma Wilson person Notification Platform owner reviews approvals"}
+{"label":"Person","name":"Frank Zhao","text":"Frank Zhao person Analytics Pipeline observability monitoring dashboards"}
+{"label":"Person","name":"Grace Patel","text":"Grace Patel person Search Service relevance analytics quality reviews"}
+{"label":"Person","name":"Henry Jones","text":"Henry Jones person Billing Service API Gateway owner architecture"}
+{"label":"Role","name":"Backend Engineer","text":"Backend Engineer role server APIs databases"}
+{"label":"Repository","name":"openai/openai-python","text":"openai openai-python GitHub repository Python SDK"}
+{"label":"Repository","name":"Shibi-A/InstitutionalMemory","text":"Shibi-A InstitutionalMemory GitHub repository organizational knowledge graph"}

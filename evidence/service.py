@@ -152,6 +152,118 @@ def add_contribution_evidence(
     return evidence_id
 
 
+def add_skill_evidence(
+    driver,
+    *,
+    person: str,
+    skill: str,
+    source: str,
+    statement: str,
+    observed_at: Optional[str] = None,
+    weight: float = 0.1,
+    evidence_id: Optional[str] = None,
+    recalculate: bool = True,
+) -> str:
+    evidence_id = evidence_id or str(uuid.uuid4())
+    driver.execute_query(
+        """
+        MERGE (person:Person {name: $person})
+        MERGE (skill:Skill {name: $skill})
+        MERGE (evidence:Evidence {id: $evidence_id})
+        ON CREATE SET evidence.created_at = datetime(),
+                      evidence.observed_at = CASE
+                        WHEN $observed_at IS NULL THEN datetime()
+                        ELSE datetime($observed_at)
+                      END
+        SET evidence.level = 'aggregated',
+            evidence.weight = $weight,
+            evidence.source = $source,
+            evidence.statement = $statement,
+            evidence.evidence_type = 'skill',
+            evidence.inference_rule = 'commit_used_technology',
+            evidence.polarity = 1
+        MERGE (person)-[:HAS_EVIDENCE]->(evidence)
+        MERGE (evidence)-[:ABOUT]->(skill)
+        """,
+        person=person,
+        skill=skill,
+        evidence_id=evidence_id,
+        weight=weight,
+        source=source,
+        statement=statement,
+        observed_at=observed_at,
+        database_="neo4j",
+    )
+    if recalculate:
+        recalculate_skill_scores(driver, skill)
+    return evidence_id
+
+
+def recalculate_skill_scores(driver, skill: str) -> None:
+    records, _, _ = driver.execute_query(
+        """
+        MATCH (person:Person)-[:HAS_EVIDENCE]->(evidence:Evidence)-[:ABOUT]->(skill:Skill)
+        WHERE toLower(skill.name) = toLower($skill)
+          AND evidence.evidence_type = 'skill'
+        RETURN person.name AS person, skill.name AS skill,
+               count(evidence) AS evidence_count,
+               sum(evidence.weight) AS evidence_weight,
+               collect({
+                 weight: evidence.weight,
+                 observed_at: coalesce(evidence.observed_at, evidence.created_at)
+               }) AS evidence_items
+        """,
+        skill=skill,
+        database_="neo4j",
+    )
+    decayed_weights = {}
+    for record in records:
+        decayed_weights[record["person"]] = sum(
+            calculate_decayed_weight(
+                item["weight"],
+                evidence_age_days(item["observed_at"]),
+            )
+            for item in record["evidence_items"]
+        )
+    total_weight = sum(decayed_weights.values())
+
+    driver.execute_query(
+        """
+        MATCH (:Person)-[relationship:HAS_SKILL]->(skill:Skill)
+        WHERE toLower(skill.name) = toLower($skill)
+        DELETE relationship
+        """,
+        skill=skill,
+        database_="neo4j",
+    )
+    for record in records:
+        decayed_weight = decayed_weights[record["person"]]
+        driver.execute_query(
+            """
+            MATCH (person:Person), (skill:Skill)
+            WHERE toLower(person.name) = toLower($person)
+              AND toLower(skill.name) = toLower($skill)
+            MERGE (person)-[relationship:HAS_SKILL]->(skill)
+            SET relationship.confidence = $confidence,
+                relationship.strength = $strength,
+                relationship.evidence_count = $evidence_count,
+                relationship.evidence_weight = $evidence_weight,
+                relationship.decayed_evidence_weight = $decayed_evidence_weight,
+                relationship.evidence_half_life_days = $evidence_half_life_days,
+                relationship.last_calculated_at = datetime()
+            """,
+            person=record["person"],
+            skill=record["skill"],
+            confidence=calculate_confidence(decayed_weight),
+            strength=calculate_strength(decayed_weight, total_weight),
+            evidence_count=record["evidence_count"],
+            evidence_weight=record["evidence_weight"],
+            decayed_evidence_weight=decayed_weight,
+            evidence_half_life_days=DEFAULT_HALF_LIFE_DAYS,
+            database_="neo4j",
+        )
+
+
 def recalculate_relationship_scores(
     driver,
     project: str,

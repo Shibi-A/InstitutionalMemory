@@ -1,11 +1,14 @@
-"""Score text similarity with Chroma vector embeddings."""
+"""Rank text with hybrid BM25 and Chroma cosine retrieval."""
 
 from dataclasses import dataclass
 from typing import Iterable, Optional
-from uuid import uuid4
 
-import chromadb
-from chromadb.config import Settings
+from scoring.hybrid_search import (
+    BM25Retriever,
+    CosineRetriever,
+    SearchDocument,
+    reciprocal_rank_fusion,
+)
 
 
 @dataclass(frozen=True)
@@ -19,34 +22,29 @@ def score_semantic_matches(
     candidates: Iterable[str],
     limit: Optional[int] = None,
 ) -> list[SemanticMatch]:
-    """Return candidate strings ordered by semantic similarity."""
+    """Return candidate strings ordered by BM25-plus-cosine rank fusion."""
     texts = list(dict.fromkeys(candidates))
     if not texts:
         raise ValueError("At least one candidate is required.")
 
-    client = chromadb.Client(
-        Settings(anonymized_telemetry=False, is_persistent=False)
+    documents = [
+        SearchDocument(str(index), text)
+        for index, text in enumerate(texts)
+    ]
+    cosine_matches = CosineRetriever(documents).score(user_input)
+    bm25_matches = BM25Retriever(documents).score(user_input)
+    fused_matches = reciprocal_rank_fusion(
+        (cosine_matches, bm25_matches),
+        limit=min(limit or len(texts), len(texts)),
     )
-    collection = client.create_collection(
-        name=f"project_name_search_{uuid4().hex}",
-        metadata={"hnsw:space": "cosine"},
-    )
-    collection.add(
-        ids=[str(index) for index in range(len(texts))],
-        documents=texts,
-    )
-
-    result_count = min(limit or len(texts), len(texts))
-    results = collection.query(query_texts=[user_input], n_results=result_count)
-    matched_texts = results["documents"][0]
-    cosine_distances = results["distances"][0]
+    cosine_scores = {match.key: match.score for match in cosine_matches}
 
     return [
         SemanticMatch(
-            text=text,
-            confidence=max(0.0, min(1.0, 1.0 - distance)),
+            text=texts[int(match.key)],
+            confidence=cosine_scores[match.key],
         )
-        for text, distance in zip(matched_texts, cosine_distances)
+        for match in fused_matches
     ]
 
 
@@ -64,7 +62,7 @@ def main():
         return 1
 
     matches = score_semantic_matches(user_input, candidates)
-    print("Semantic scores:")
+    print("Hybrid semantic rankings with cosine scores:")
     for match in matches:
         print(f"- {match.text}: {match.confidence:.1%}")
     return 0

@@ -1,4 +1,4 @@
-"""Handle read-only graph retrieval using local Chroma intent matching."""
+"""Handle read-only graph retrieval using local hybrid intent matching."""
 
 import os
 import re
@@ -61,10 +61,12 @@ INTENTS = (
         OPTIONAL MATCH (person)-[work:DESIGNS|IMPLEMENTED|OWNED]->(project:Project)
         OPTIONAL MATCH (person)-[:WORKS_UNDER]->(supervisor:Person)
         OPTIONAL MATCH (person)-[:SUPERVISES]->(directReport:Person)
+        OPTIONAL MATCH (person)-[skillRelationship:HAS_SKILL]->(skill:Skill)
         RETURN person.name AS person,
                collect(DISTINCT role.name) AS roles,
                collect(DISTINCT project.name) AS projects,
                collect(DISTINCT type(work)) AS contributions,
+               collect(DISTINCT skill.name) AS skills,
                collect(DISTINCT supervisor.name) AS supervisors,
                collect(DISTINCT directReport.name) AS direct_reports
         """,
@@ -158,6 +160,25 @@ INTENTS = (
                work.evidence_count AS evidence_count,
                work.contradicting_evidence_count AS contradictions
         ORDER BY contribution, strength DESC, person
+        """,
+    ),
+    Intent(
+        name="skill_experts",
+        examples=(
+            "Who knows how to use this technology?",
+            "Who has this skill?",
+            "Who is skilled in Python?",
+            "Who has experience with Neo4j?",
+        ),
+        entity_labels=("Skill",),
+        cypher="""
+        MATCH (person:Person)-[relationship:HAS_SKILL]->(skill:Skill)
+        WHERE toLower(skill.name) = toLower($entity_0)
+        RETURN person.name AS person, skill.name AS skill,
+               relationship.confidence AS confidence,
+               relationship.strength AS strength,
+               relationship.evidence_count AS evidence_count
+        ORDER BY strength DESC, confidence DESC, person
         """,
     ),
     Intent(
@@ -321,6 +342,12 @@ def classify_intent(question: str) -> tuple[Intent, float]:
             "what evidence",
             "show evidence",
             "evidence supports",
+        ),
+        "skill_experts": (
+            "who has skill",
+            "who has experience with",
+            "who knows how to use",
+            "who is skilled in",
         ),
     }
     for intent_name, phrases in intent_aliases.items():

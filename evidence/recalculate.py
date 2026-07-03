@@ -9,7 +9,7 @@ from neo4j.exceptions import Neo4jError, ServiceUnavailable
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from evidence.service import recalculate_relationship_scores
+from evidence.service import recalculate_relationship_scores, recalculate_skill_scores
 
 
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
@@ -41,7 +41,17 @@ def refresh_all_relationship_scores(driver) -> int:
             record["project"],
             record["contribution_type"],
         )
-    return len(records)
+    skill_records, _, _ = driver.execute_query(
+        """
+        MATCH (:Person)-[:HAS_EVIDENCE]->(evidence:Evidence)-[:ABOUT]->(skill:Skill)
+        WHERE evidence.evidence_type = 'skill'
+        RETURN DISTINCT skill.name AS skill
+        """,
+        database_="neo4j",
+    )
+    for record in skill_records:
+        recalculate_skill_scores(driver, record["skill"])
+    return len(records) + len(skill_records)
 
 
 def main() -> int:
